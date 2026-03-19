@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import torch
 import triton
 import triton.language as tl
@@ -10,15 +8,15 @@ HEAD_DIM_KPE = 64
 PAGE_SIZE = 64
 TOPK = 2048
 
-# ---------------------------
-# Locked config (B200 tuned)
-# ---------------------------
+# ------------------------------
+# Kernel Configuration for B200
+# ------------------------------
 BLOCK_K_FIXED = 64
 BD_FIXED = 64
 BDP_FIXED = 32
 NUM_WARPS_FIXED = 4
-NUM_STAGES_FIXED = 1          # launch-time stages
-LOOP_STAGES_FIXED = 2         # tl.range() pipelining stages (B200)
+NUM_STAGES_FIXED = 1
+LOOP_STAGES_FIXED = 2
 
 
 @triton.jit
@@ -420,7 +418,7 @@ def _kernel(
         tl.store(lse_ptr + t * s_lse_t + h * s_lse_h, lse_val, mask=inb)
 
 
-def _as_float32_scalar_tensor(sm_scale: torch.Tensor | float, device: torch.device) -> torch.Tensor:
+def _as_float32_scalar_tensor(sm_scale, device):
     if isinstance(sm_scale, (float, int)):
         return torch.tensor([float(sm_scale)], device=device, dtype=torch.float32)
     if not torch.is_tensor(sm_scale):
@@ -435,14 +433,14 @@ def _as_float32_scalar_tensor(sm_scale: torch.Tensor | float, device: torch.devi
 
 
 def kernel(
-    q_nope: torch.Tensor,
-    q_pe: torch.Tensor,
-    ckv_cache: torch.Tensor,
-    kpe_cache: torch.Tensor,
-    sparse_indices: torch.Tensor,
-    sm_scale: torch.Tensor | float,
-    output: torch.Tensor,
-    lse: torch.Tensor,
+    q_nope,
+    q_pe,
+    ckv_cache,
+    kpe_cache,
+    sparse_indices,
+    sm_scale,
+    output,
+    lse,
 ):
     if not (
         q_nope.is_cuda
